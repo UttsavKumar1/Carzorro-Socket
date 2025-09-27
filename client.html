@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Socket Test Client</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .status {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .connected {
+            color: green;
+        }
+
+        .disconnected {
+            color: red;
+        }
+
+        .messages {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+        }
+
+        .input-box {
+            margin-bottom: 10px;
+        }
+
+        .msg {
+            padding: 4px;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Socket.IO Test Client</h2>
+    <div class="status disconnected" id="status">Disconnected</div>
+
+    <div class="input-box">
+        <input type="text" id="userId" placeholder="Enter User ID">
+        <button onclick="joinRoom('user')">Join User Room</button>
+    </div>
+
+    <div class="input-box">
+        <input type="text" id="vendorId" placeholder="Enter Vendor ID">
+        <button onclick="joinRoom('vendor')">Join Vendor Room</button>
+    </div>
+
+    <div class="messages" id="messages"></div>
+
+    <script>
+        const socket = io("http://localhost:3001");
+        const statusEl = document.getElementById("status");
+        const messagesEl = document.getElementById("messages");
+
+        // Connection status
+        socket.on("connect", () => {
+            statusEl.textContent = "Connected";
+            statusEl.className = "status connected";
+        });
+
+        socket.on("disconnect", () => {
+            statusEl.textContent = "Disconnected";
+            statusEl.className = "status disconnected";
+        });
+
+       
+        let currentUserId = null;
+        let currentVendorId = null;
+
+        function joinRoom(type) {
+            if (type === "user") {
+                const userId = document.getElementById("userId").value.trim();
+                if (!userId) return alert("Enter a User ID");
+
+                // Leave previous user room if exists
+                if (currentUserId) {
+                    socket.emit("leave_user", { userId: currentUserId }); // optional
+                    socket.off("BookingCreated");
+
+                }
+
+                socket.emit("join_user", { userId });
+                currentUserId = userId;
+                addMessage(`👤 Joined user_${userId}`);
+
+                socket.on("BookingCreated", (data) => {
+                    addMessage(`📦 User Event: BookingCreated → ${JSON.stringify(data)}`);
+                });
+             
+              
+
+            } else if (type === "vendor") {
+                const vendorId = document.getElementById("vendorId").value.trim();
+                if (!vendorId) return alert("Enter a Vendor ID");
+
+                // Leave previous vendor room if exists
+                if (currentVendorId) {
+                    socket.emit("leave_vendor", { vendorId: currentVendorId }); // optional
+                    // Remove old listeners
+                    socket.off("message");
+                }
+
+                socket.emit("join_vendor", { vendorId });
+                currentVendorId = vendorId;
+                addMessage(`🏪 Joined vendor_${vendorId}`);
+
+              
+                socket.on("message", (msg) => {
+                    addMessage(`🏪 Server message → ${msg}`);
+                });
+            }
+        }
+
+
+        function addMessage(text) {
+            const div = document.createElement("div");
+            div.className = "msg";
+            div.textContent = text;
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+    </script>
+</body>
+
+</html>
